@@ -2,6 +2,7 @@ import React, { useContext, useEffect } from 'react'
 import Register from './Register/Register'
 import { UserContext } from './Register/UserContext'
 import axios from 'axios'
+import Chart from './Chart'
 
 const Routes = () => {
     const {username,id,setId,setUsername}= useContext(UserContext)
@@ -19,7 +20,7 @@ const Routes = () => {
     },[])
     
     if(username){
-        return "Login" + username
+        return <Chart/>
     }
   return (
     <Register/>

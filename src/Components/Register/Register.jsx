@@ -11,13 +11,10 @@ const Register = () => {
             ev.preventDefault();
             const url = LogOrReg === 'register'?"/register":"/login";
         const {data} = await axios.post(url,({username:username,password:password}));
-        // console.log(username)
-        console.log(data)
+      
         setLogedUser(username)
         setLogdId(data.id)
-        console.log(LogedId)
-        console.log(LogedUser)
-        // console.log(userDoc)
+      
 
     }
 

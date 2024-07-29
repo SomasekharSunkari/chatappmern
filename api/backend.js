@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser"; // Import cookie-parser
 import { User } from "./models/User.js"; // Ensure this path is correct
+import ws, { WebSocketServer ,WebSocket} from "ws";
 
 dotenv.config();
 const app = express();
@@ -26,21 +27,24 @@ mongoose.connect(process.env.MONGO_URL)
     .catch((err) => console.error("Database connection error:", err));
 
 // Register Endpoint
-app.post('/login', async (req,res) => {
-    const {username, password} = req.body;
-    const foundUser = await User.findOne({username});
+app.post('/login', async (req, res) => {
+    const { username, password } = req.body;
+    const foundUser = await User.findOne({ username });
     if (foundUser) {
-      const passOk = bcrypt.compareSync(password, foundUser.password);
-      if (passOk) {
-        jwt.sign({userId:foundUser._id,username}, jwt_secret, {}, (err, token) => {
-          res.cookie('token', token).json({
-           
-            id: foundUser._id,
-          });
-        });
-      }
+        const passOk = bcrypt.compareSync(password, foundUser.password);
+        if (passOk) {
+            jwt.sign({ userId: foundUser._id, username }, jwt_secret, {}, (err, token) => {
+                res.cookie('token', token).json({
+
+                    id: foundUser._id,
+                });
+            });
+        }
+        else{
+            res.sendStatus(404)
+        }
     }
-  });
+});
 app.post("/register", async (req, res) => {
     try {
         const { username, password } = req.body;
@@ -58,7 +62,7 @@ app.post("/register", async (req, res) => {
         const UserDoc = await User.create({ username: username, password: hashedPassword });
 
         // Generate JWT
-        jwt.sign({ user_id: UserDoc._id, username }, jwt_secret, {}, (err, token) => {
+        jwt.sign({ userId: UserDoc._id, username }, jwt_secret, {}, (err, token) => {
             if (err) {
                 console.error("JWT signing error:", err);
                 return res.status(500).json({ message: "Internal server error" });
@@ -79,7 +83,7 @@ app.post("/register", async (req, res) => {
 // Profile Endpoint
 app.get('/profile', (req, res) => {
     const { token } = req.cookies;
-    
+
     if (!token) {
         return res.status(202).json({ message: 'No token provided' });
     }
@@ -99,6 +103,41 @@ app.get('/profile', (req, res) => {
 });
 
 // Start Server
-app.listen(4040, () => {
+const server = app.listen(4040, () => {
+
     console.log("Server running on port 4040");
 });
+
+const wss = new WebSocketServer({ server });
+wss.on('connection', (connection, req) => {
+
+    const cookies = req.headers.cookie;
+    // console.log(cookies)
+    // console.log(req.headers)
+    const tokenCookieString = cookies.split(";").find(str => str.trim().startsWith("token"))
+    // console.log(tokenCookieString)
+    if(tokenCookieString){
+        const token = tokenCookieString.split("=")[1];
+        if(token){
+            jwt.verify(token,jwt_secret,{},(err,userInfo)=>{
+                if (err) throw err
+
+                // console.log(userInfo)
+                const {userId,username} = userInfo;
+                connection.userId = userId;
+                connection.username = username;
+            })
+        }
+    }
+    // connection.send(tokenCookieString)
+    wss.clients.forEach((client) => {
+        // Check if the client is ready to receive messages
+        client.send(JSON.stringify({
+          online:  [...wss.clients].map((c)=>({userId:c.userId,username:c.username}))
+
+        }
+        ))
+      });
+      
+})
+
