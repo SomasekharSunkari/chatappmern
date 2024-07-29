@@ -11,8 +11,12 @@ const Register = () => {
             ev.preventDefault();
             const url = LogOrReg === 'register'?"/register":"/login";
         const {data} = await axios.post(url,({username:username,password:password}));
+        console.log(data)
       
+
+        localStorage.setItem('id',data.id)
         setLogedUser(username)
+        // localStorage.setItem("id",data.id)
         setLogdId(data.id)
       
 

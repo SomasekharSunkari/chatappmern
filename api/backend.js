@@ -110,28 +110,35 @@ const server = app.listen(4040, () => {
 
 const wss = new WebSocketServer({ server });
 wss.on('connection', (connection, req) => {
-
     const cookies = req.headers.cookie;
-    // console.log(cookies)
-    // console.log(req.headers)
+    
     const tokenCookieString = cookies.split(";").find(str => str.trim().startsWith("token"))
-    // console.log(tokenCookieString)
     if(tokenCookieString){
         const token = tokenCookieString.split("=")[1];
         if(token){
             jwt.verify(token,jwt_secret,{},(err,userInfo)=>{
                 if (err) throw err
-
-                // console.log(userInfo)
                 const {userId,username} = userInfo;
                 connection.userId = userId;
                 connection.username = username;
             })
         }
     }
-    // connection.send(tokenCookieString)
+
+    connection.on("message",(message)=>{
+        const data = JSON.parse(message.toString())
+        console.log(data)
+    // const {message} = data;
+    const {reciptant,text} = data;
+    
+    if(reciptant && text){
+        [...wss.clients].filter(client => client.userId === reciptant ).forEach(c => c.send(JSON.stringify({text,sender:connection.userId})))
+    }
+
+    console.log("done")
+    })
     wss.clients.forEach((client) => {
-        // Check if the client is ready to receive messages
+        
         client.send(JSON.stringify({
           online:  [...wss.clients].map((c)=>({userId:c.userId,username:c.username}))
 
